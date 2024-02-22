@@ -1,6 +1,7 @@
-use std::net::{IpAddr, TcpStream};
-use std::path::Path;
+use std::fs;
+use std::net::TcpStream;
 use serde::{Deserialize, Serialize};
+use ssh2::OpenType::File;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct TargetConfig {
@@ -11,12 +12,8 @@ struct TargetConfig {
 }
 
 fn main() {
-    let config = TargetConfig {
-        username: "".to_string(),
-        ip: "127.0.0.1".to_string(),
-        port: 22,
-        key_path: "".to_string(),
-    };
+    let target_file: String = load_target_file();
+    let config: TargetConfig = serde_yaml::from_str(&*target_file).unwrap();
 
     if config.port == 22 && config.ip != "127.0.0.1".to_string() {
         println!("Warning: It is recommended to change the SSH port from its default of 22 on the remote machine.")
@@ -29,7 +26,14 @@ fn main() {
             return;
         }
     };
+}
 
-
-    println!("Hello, world!");
+fn load_target_file() -> String {
+    match fs::read_to_string("target.yml") {
+        Ok(contents) => return contents,
+        Err(error) => {
+            println!("Error while trying to read target file:\n{}",error);
+            panic!()
+        }
+    }
 }

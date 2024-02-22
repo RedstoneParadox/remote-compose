@@ -1,0 +1,4 @@
+username: "opc"
+ip: "146.235.229.54"
+port: 22
+key_path: "key\\ssh-key-2024-02-22.key"
