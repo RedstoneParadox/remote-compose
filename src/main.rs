@@ -1,5 +1,6 @@
 use std::fs;
 use std::net::TcpStream;
+use std::path::Path;
 use serde::{Deserialize, Serialize};
 use ssh2::Error;
 use ssh2::ErrorCode::Session;
@@ -41,7 +42,10 @@ fn main() {
         println!("Error while attempting ssh handshake:\n{}",error);
         return;
     }
-    if let Err(error) = session.userauth_agent(&*config.username) {
+
+    let key_path = Path::new(&config.key_path);
+
+    if let Err(error) = session.userauth_pubkey_file(&*config.username, None,&key_path, None) {
         println!("Error while attempting to authenticate with remote server:\n{}",error);
         return;
     }
