@@ -1,11 +1,11 @@
-use std::fmt::format;
+mod error;
+
 use std::fs;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::path::Path;
 use serde::{Deserialize, Serialize};
-use ssh2::Error;
-use ssh2::ErrorCode::Session;
-use ssh2::OpenType::File;
+use ssh2::{Error, Session};
+use crate::error::WrappedError;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct TargetConfig {
@@ -37,9 +37,9 @@ fn main() {
     };
 }
 
-fn connect(addr: String, port: i32, username: String, key_path: &String) -> Result<ssh2::Session, Error> {
+fn connect(addr: String, port: i32, username: String, key_path: &String) -> Result<Session, WrappedError> {
     let tcp = TcpStream::connect(format!("{}:{}",addr, port))?;
-    let mut session = ssh2::Session::new()?;
+    let mut session = Session::new()?;
     let key_path = Path::new(&key_path);
 
     session.set_tcp_stream(tcp);
@@ -49,7 +49,7 @@ fn connect(addr: String, port: i32, username: String, key_path: &String) -> Resu
     return Ok(session)
 }
 
-fn load_target_config() -> Result<TargetConfig, Error> {
+fn load_target_config() -> Result<TargetConfig, WrappedError> {
     let target_file = fs::read_to_string("target.yml")?;
     let target_config = serde_yaml::from_str(&*target_file)?;
     return Ok(target_config)
