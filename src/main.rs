@@ -41,6 +41,10 @@ fn main() {
         println!("Error while attempting ssh handshake:\n{}",error);
         return;
     }
+    if let Err(error) = session.userauth_agent(&*config.username) {
+        println!("Error while attempting to authenticate with remote server:\n{}",error);
+        return;
+    }
 }
 
 fn load_target_file() -> String {
