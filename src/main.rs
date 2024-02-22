@@ -16,17 +16,13 @@ struct TargetConfig {
 }
 
 fn main() {
-    let config = match load_target_config() {
+    let config = match load_target_config("target.yml") {
         Ok(c) => c,
         Err(error) => {
             println!("Error while loading config 'target.yml':\n{}",error);
             return;
         }
     };
-
-    if config.port == 22 && config.ip != "127.0.0.1".to_string() {
-        println!("Warning: It is recommended to change the SSH port from its default of 22 on the remote machine.")
-    }
 
     let session = match connect(&*config.ip, config.port, config.username, &config.key_path) {
         Ok(s) => s,
@@ -38,6 +34,7 @@ fn main() {
 }
 
 fn connect(addr: &str, port: i32, username: String, key_path: &String) -> Result<Session, WrappedError> {
+    println!("Connecting to '{}@{}:{}'", username, addr, port);
     let tcp = TcpStream::connect(format!("{}:{}",addr, port))?;
     let mut session = Session::new()?;
     let key_path = Path::new(&key_path);
@@ -49,8 +46,14 @@ fn connect(addr: &str, port: i32, username: String, key_path: &String) -> Result
     return Ok(session)
 }
 
-fn load_target_config() -> Result<TargetConfig, WrappedError> {
-    let target_file = fs::read_to_string("target.yml")?;
-    let target_config = serde_yaml::from_str(&*target_file)?;
-    return Ok(target_config)
+fn load_target_config(config_file: &str) -> Result<TargetConfig, WrappedError> {
+    println!("Loading target config '{}'", config_file);
+    let target_file = fs::read_to_string(config_file)?;
+    let config: TargetConfig = serde_yaml::from_str(&*target_file)?;
+
+    if config.port == 22 && config.ip != "127.0.0.1".to_string() {
+        println!("Warning: It is recommended to change the SSH port from its default of 22 on the remote machine.")
+    }
+
+    return Ok(config)
 }
