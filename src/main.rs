@@ -1,6 +1,8 @@
 use std::fs;
 use std::net::TcpStream;
 use serde::{Deserialize, Serialize};
+use ssh2::Error;
+use ssh2::ErrorCode::Session;
 use ssh2::OpenType::File;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -26,6 +28,19 @@ fn main() {
             return;
         }
     };
+    let mut session = match ssh2::Session::new() {
+        Ok(sess) => sess,
+        Err(error) => {
+            println!("Error while attempting to start ssh session:\n{}",error);
+            return;
+        }
+    };
+
+    session.set_tcp_stream(tcp);
+    if let Err(error) = session.handshake() {
+        println!("Error while attempting ssh handshake:\n{}",error);
+        return;
+    }
 }
 
 fn load_target_file() -> String {
