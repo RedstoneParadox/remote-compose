@@ -28,7 +28,7 @@ fn main() {
         println!("Warning: It is recommended to change the SSH port from its default of 22 on the remote machine.")
     }
 
-    let session = match connect(config.ip, config.port, config.username, &config.key_path) {
+    let session = match connect(&*config.ip, config.port, config.username, &config.key_path) {
         Ok(s) => s,
         Err(error) => {
             println!("Error while attempting ssh connection to '{}:{}':\n{}", config.ip, config.port, error);
@@ -37,7 +37,7 @@ fn main() {
     };
 }
 
-fn connect(addr: String, port: i32, username: String, key_path: &String) -> Result<Session, WrappedError> {
+fn connect(addr: &str, port: i32, username: String, key_path: &String) -> Result<Session, WrappedError> {
     let tcp = TcpStream::connect(format!("{}:{}",addr, port))?;
     let mut session = Session::new()?;
     let key_path = Path::new(&key_path);
