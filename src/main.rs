@@ -1,10 +1,13 @@
 mod error;
+mod command;
 
 use std::fs;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::path::Path;
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 use ssh2::{Error, Session};
+use crate::command::{Cli, Commands};
 use crate::error::WrappedError;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -16,21 +19,26 @@ struct TargetConfig {
 }
 
 fn main() {
-    let config = match load_target_config("target.yml") {
-        Ok(c) => c,
-        Err(error) => {
-            println!("Error while loading config 'target.yml':\n{}",error);
-            return;
-        }
-    };
+    let args = Cli::parse();
 
-    let session = match connect(&*config.ip, config.port, config.username, &config.key_path) {
-        Ok(s) => s,
-        Err(error) => {
-            println!("Error while attempting ssh connection to '{}:{}':\n{}", config.ip, config.port, error);
-            return;
+    match args.command {
+        Commands::Deploy { config_path } => {
+            let config = match load_target_config(&*config_path) {
+                Ok(c) => c,
+                Err(error) => {
+                    println!("Error while loading config '{}':\n{}", config_path, error);
+                    return;
+                }
+            };
+            let session = match connect(&*config.ip, config.port, config.username, &config.key_path) {
+                Ok(s) => s,
+                Err(error) => {
+                    println!("Error while attempting ssh connection to '{}:{}':\n{}", config.ip, config.port, error);
+                    return;
+                }
+            };
         }
-    };
+    }
 }
 
 fn connect(addr: &str, port: i32, username: String, key_path: &String) -> Result<Session, WrappedError> {
@@ -46,9 +54,9 @@ fn connect(addr: &str, port: i32, username: String, key_path: &String) -> Result
     return Ok(session)
 }
 
-fn load_target_config(config_file: &str) -> Result<TargetConfig, WrappedError> {
-    println!("Loading target config '{}'", config_file);
-    let target_file = fs::read_to_string(config_file)?;
+fn load_target_config(config_path: &str) -> Result<TargetConfig, WrappedError> {
+    println!("Loading target config '{}'", config_path);
+    let target_file = fs::read_to_string(config_path)?;
     let config: TargetConfig = serde_yaml::from_str(&*target_file)?;
 
     if config.port == 22 && config.ip != "127.0.0.1".to_string() {
