@@ -1,0 +1,9 @@
+username: "rp"
+ip: "127.0.0.1"
+port: 2222
+password: "hype123"
+remote_dir: "deployment"
+
+stacks:
+  foo:
+    name: "foo"
