@@ -56,5 +56,9 @@ fn restart_stack(session: &Session, remote_dir: &str, stack_name: &str) -> Resul
 fn compose_exec(session: &Session, path: &str, command: &str) -> Result<(), WrappedError> {
     let mut channel = session.channel_session()?;
     channel.exec(&*format!("docker compose -f {} {}", path, command))?;
+    channel.send_eof()?;
+    channel.wait_eof()?;
+    channel.close()?;
+    channel.wait_close()?;
     return Ok(())
 }
