@@ -21,20 +21,15 @@ fn main() {
 
     match args.command {
         Commands::Deploy { config_path } => {
-            let config = match load_target_config(&*config_path) {
-                Ok(c) => c,
+            let tuple = match connect_to_target(&*config_path) {
+                Ok(v) => v,
                 Err(error) => {
-                    println!("Error while loading config '{}':\n{}", config_path, error);
+                    println!("Error:\n{}", error);
                     return;
                 }
             };
-            let session = match connect(&*config.ip, config.port, config.username, config.credentials) {
-                Ok(s) => s,
-                Err(error) => {
-                    println!("Error while attempting ssh connection to '{}:{}':\n{}", config.ip, config.port, error);
-                    return;
-                }
-            };
+            let config = tuple.0;
+            let session = tuple.1;
 
             match deploy_stacks(session, config.remote_dir, config.stacks.values()) {
                 Ok(_) => {}
@@ -44,6 +39,12 @@ fn main() {
             }
         }
     }
+}
+
+fn connect_to_target(config_path: &str) -> Result<(TargetConfig, Session), WrappedError> {
+    let config = load_target_config(config_path)?;
+    let session = connect(&*config.ip, config.port, &*config.username, &config.credentials)?;
+    Ok((config, session))
 }
 
 fn load_target_config(config_path: &str) -> Result<TargetConfig, WrappedError> {
@@ -58,7 +59,7 @@ fn load_target_config(config_path: &str) -> Result<TargetConfig, WrappedError> {
     return Ok(config)
 }
 
-fn connect(addr: &str, port: i32, username: String, credentials: Credentials) -> Result<Session, WrappedError> {
+fn connect(addr: &str, port: i32, username: &str, credentials: &Credentials) -> Result<Session, WrappedError> {
     println!("Connecting to '{}@{}:{}'", username, addr, port);
     let tcp = TcpStream::connect(format!("{}:{}",addr, port))?;
     let mut session = Session::new()?;
