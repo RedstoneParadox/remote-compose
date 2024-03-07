@@ -1,8 +1,8 @@
 mod error;
 mod command;
 mod config;
+mod deployment;
 
-use std::collections::hash_map::Values;
 use std::fs;
 use std::io::Write;
 use std::net::{TcpStream, ToSocketAddrs};
@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use ssh2::Session;
 use config::TargetConfig;
 use crate::command::{Cli, Commands};
-use crate::config::{Credentials, TargetStack};
+use crate::config::Credentials;
 use crate::error::WrappedError;
 
 fn main() {
@@ -31,7 +31,7 @@ fn main() {
             let config = tuple.0;
             let session = tuple.1;
 
-            match deploy_stacks(session, config.remote_dir, config.stacks.values()) {
+            match deployment::deploy_stacks(session, config.remote_dir, config.stacks.values()) {
                 Ok(_) => {}
                 Err(error) => {
                     println!("Error while attempting to deploy stacks to '{}:{}':\n{}", config.ip, config.port, error)
@@ -78,32 +78,4 @@ fn connect(addr: &str, port: i32, username: &str, credentials: &Credentials) -> 
     }?;
 
     return Ok(session);
-}
-
-fn deploy_stacks(session: Session, remote_dir: String, stacks: Values<String, TargetStack>) -> Result<(), WrappedError> {
-    for stack in stacks {
-        println!("Deploying stack {}", stack.name);
-        // If yaml only had one valid file extension, I wouldn't have to do this.
-        let yaml_path_string = format!("{}/compose.yaml", stack.name);
-        let yaml_path = Path::new(&yaml_path_string);
-        let yml_path_string = format!("{}/compose.yml", stack.name);
-        let yml_path = Path::new(&yml_path_string);
-        let compose_file = if yaml_path.exists() {
-            fs::read_to_string(yaml_path)?
-        } else {
-            fs::read_to_string(yml_path)?
-        };
-        let remote_path_string = format!("{}/{}/compose.yaml", remote_dir, stack.name);
-        let remote_path = Path::new(&remote_path_string);
-        let mut remote_file = session.scp_send(remote_path, 0o644, compose_file.len() as u64, None)?;
-
-        remote_file.write(compose_file.as_bytes())?;
-        remote_file.send_eof()?;
-        remote_file.wait_eof()?;
-        remote_file.close()?;
-        remote_file.wait_close()?;
-        println!("Successfully deployed stack {}", stack.name)
-    }
-
-    return Ok(());
 }
