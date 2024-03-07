@@ -10,10 +10,11 @@ pub fn deploy_stacks(session: Session, remote_dir: String, stacks: Values<String
     for stack in stacks {
         println!("Deploying stack {}", stack.name);
         let compose_file = load_compose_file(&stack.name)?;
-        let remote_path_string = format!("{}/{}/compose.yaml", remote_dir, stack.name);
+        let remote_path_string = format!("{}/{}/compose.yml", remote_dir, stack.name);
         let remote_path = Path::new(&remote_path_string);
 
         write_remote_file(&session, compose_file, remote_path)?;
+        restart_stack(&session, &*remote_dir, &*stack.name)?;
         println!("Successfully deployed stack {}", stack.name)
     }
 
@@ -38,5 +39,22 @@ fn write_remote_file(session: &Session, contents: String, remote_path: &Path) ->
     remote_file.wait_eof()?;
     remote_file.close()?;
     remote_file.wait_close()?;
+    return Ok(())
+}
+
+fn restart_stack(session: &Session, remote_dir: &str, stack_name: &str) -> Result<(), WrappedError> {
+    println!("Restarting stack {}.", stack_name);
+    let remote_path_string = &*format!("{}/{}/compose.yml", remote_dir, stack_name);
+
+    compose_exec(session, remote_path_string, &*"down")?;
+    compose_exec(session, remote_path_string, &*"pull")?;
+    compose_exec(session, remote_path_string, &*"up")?;
+
+    return Ok(())
+}
+
+fn compose_exec(session: &Session, path: &str, command: &str) -> Result<(), WrappedError> {
+    let mut channel = session.channel_session()?;
+    channel.exec(&*format!("docker compose -f {} {}", path, command))?;
     return Ok(())
 }

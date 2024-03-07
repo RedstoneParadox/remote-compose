@@ -1,0 +1,7 @@
+version: "3.9"
+
+services:
+  hello-world:
+    image: httpd:latest
+    ports:
+      - "80:80"
