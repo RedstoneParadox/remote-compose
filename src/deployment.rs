@@ -2,7 +2,7 @@ use ssh2::Session;
 use std::collections::hash_map::Values;
 use std::path::Path;
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
 use crate::config::TargetStack;
 use crate::error::WrappedError;
 
@@ -44,7 +44,7 @@ fn write_remote_file(session: &Session, contents: String, remote_path: &Path) ->
 
 fn restart_stack(session: &Session, remote_dir: &str, stack_name: &str) -> Result<(), WrappedError> {
     println!("Restarting stack {}.", stack_name);
-    let remote_path_string = &*format!("{}/{}/compose.yml", remote_dir, stack_name);
+    let remote_path_string = &*format!("{}/{}", remote_dir, stack_name);
 
     compose_exec(session, remote_path_string, &*"down")?;
     compose_exec(session, remote_path_string, &*"pull")?;
@@ -55,7 +55,11 @@ fn restart_stack(session: &Session, remote_dir: &str, stack_name: &str) -> Resul
 
 fn compose_exec(session: &Session, path: &str, command: &str) -> Result<(), WrappedError> {
     let mut channel = session.channel_session()?;
-    channel.exec(&*format!("docker compose -f {} {}", path, command))?;
+    channel.shell()?;
+    channel.write(format!("cd {} ; sudo docker compose {}", path, command).as_bytes())?;
+    let mut buf = String::new();
+    channel.read_to_string(&mut buf)?;
+    println!("{}", buf);
     channel.send_eof()?;
     channel.wait_eof()?;
     channel.close()?;
