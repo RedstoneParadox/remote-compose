@@ -9,16 +9,22 @@ use crate::error::WrappedError;
 pub fn deploy_stacks(session: Session, remote_dir: String, stacks: Values<String, TargetStack>) -> Result<(), WrappedError> {
     for stack in stacks {
         println!("Deploying stack {}", stack.name);
-        let compose_file = load_compose_file(&stack.name)?;
-        let remote_path_string = format!("{}/{}/compose.yml", remote_dir, stack.name);
-        let remote_path = Path::new(&remote_path_string);
-
-        write_remote_file(&session, compose_file, remote_path)?;
+        send_compose_file(&session, stack, remote_dir.clone())?;
         restart_stack(&session, &*remote_dir, &*stack.name)?;
         println!("Successfully deployed stack {}", stack.name)
     }
 
     return Ok(());
+}
+
+fn send_compose_file(session: &Session, stack: &TargetStack, remote_dir: String) -> Result<(), WrappedError> {
+    let compose_file = load_compose_file(&stack.name)?;
+    let remote_path_string = format!("{}/{}/compose.yml", remote_dir, stack.name);
+    let remote_path = Path::new(&remote_path_string);
+
+    write_remote_file(&session, compose_file, remote_path)?;
+
+    return Ok(())
 }
 
 fn load_compose_file(stack_name: &str) -> std::io::Result<String> {
@@ -48,21 +54,20 @@ fn restart_stack(session: &Session, remote_dir: &str, stack_name: &str) -> Resul
 
     compose_exec(session, remote_path_string, &*"down")?;
     compose_exec(session, remote_path_string, &*"pull")?;
-    compose_exec(session, remote_path_string, &*"up")?;
+    compose_exec(session, remote_path_string, &*"up -d")?;
 
     return Ok(())
 }
 
 fn compose_exec(session: &Session, path: &str, command: &str) -> Result<(), WrappedError> {
     let mut channel = session.channel_session()?;
-    channel.shell()?;
-    channel.write(format!("cd {} ; sudo docker compose {}", path, command).as_bytes())?;
     let mut buf = String::new();
+
+    channel.exec(&*format!("cd {} ; docker compose {}", path, command))?;
     channel.read_to_string(&mut buf)?;
     println!("{}", buf);
-    channel.send_eof()?;
-    channel.wait_eof()?;
     channel.close()?;
     channel.wait_close()?;
+
     return Ok(())
 }
