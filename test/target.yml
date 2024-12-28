@@ -1,7 +1,7 @@
 username: "rp"
 ip: "127.0.0.1"
 port: 2222
-password: "hype123"
+key_path: "key\\id_rsa.key"
 remote_dir: "deployment"
 
 stacks:
